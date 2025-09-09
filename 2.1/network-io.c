@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
 
 void *cllent_thread(void *arg) {
 
@@ -12,6 +13,11 @@ void *cllent_thread(void *arg) {
     while(1) {
         char buffer[1024] = {0};
         int count = recv(clientfd, buffer, 1024, 0);
+        if (count == 0) {
+            printf("client disconnected: %d\n", clientfd);
+            close(clientfd);
+            break;
+        }
 
         printf("RECV: %s\n", buffer);
 
@@ -34,13 +40,14 @@ int main() {
     }
 
     listen(sockfd, 10); // 最大连接数
-    printf("listen finshed\n");
+    printf("listen finshed: %d\n", sockfd);
 
     struct sockaddr_in clientaddr;
     socklen_t len = sizeof(clientaddr);
 
     while(1) {
         int clientfd = accept(sockfd, (struct sockaddr*)&clientaddr, &len);
+        printf("accept client: %d\n", clientfd);
 
         pthread_t tid;
         pthread_create(&tid, NULL, cllent_thread, (void *)&clientfd);

@@ -68,6 +68,10 @@
     "random": "c",
     "sstream": "c",
     "buffer": "c",
-    "pthread.h": "c"
+    "pthread.h": "c",
+    "unistd.h": "c",
+    "select.h": "c",
+    "poll.h": "c",
+    "epoll.h": "c"
   }
 }

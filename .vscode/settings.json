@@ -72,6 +72,8 @@
     "unistd.h": "c",
     "select.h": "c",
     "poll.h": "c",
-    "epoll.h": "c"
+    "epoll.h": "c",
+    "algorithm": "c",
+    "io_context": "c"
   }
 }

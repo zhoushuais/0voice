@@ -6,35 +6,21 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/epoll.h>
+#include "server.h"
 
 int epfd = 0;
 
-#define BUFFER_LENGTH 1024
-#define CONNECTION_SIZE 1024
 
-typedef int (*RCALLBACK)(int fd);
+#define CONNECTION_SIZE 1024
+#define MAX_POINTER 20
+
+
 
 int accept_cb(int fd);
 int recv_cb(int fd);
 int send_cb(int fd);
 
-struct conn {
-    int fd;
 
-    char rbuffer[BUFFER_LENGTH];
-    int rlength;
-
-    char wbuffer[BUFFER_LENGTH];
-    int wlength;
-
-    RCALLBACK send_callback;
-
-    union {
-        RCALLBACK recv_callback;
-        RCALLBACK accept_callback;
-    } r_action;
-
-};
 
 struct conn conn_list[CONNECTION_SIZE] = {0};
 
@@ -75,7 +61,7 @@ int accept_cb(int fd) {
     int clientfd = accept(fd, (struct sockaddr*)&clientaddr, &len);
     printf("accept client: %d\n", clientfd);
 
-    event_register(clientfd, EPOLLIN);
+    event_register(clientfd, EPOLLIN | EPOLLET);
 
     return 0;
 }
@@ -91,10 +77,15 @@ int recv_cb(int fd) {
     conn_list[fd].rlength = count;
 
     printf("RECV: %s\n", conn_list[fd].rbuffer);
-    
+
+#if 0
     conn_list[fd].wlength = conn_list[fd].rlength;
     memcpy(conn_list[fd].wbuffer, conn_list[fd].rbuffer, conn_list[fd].wlength);
-    
+
+#else
+    http_request(&conn_list[fd]);
+
+#endif
     set_event(fd, EPOLLOUT, 0);
 
     return count;
@@ -102,7 +93,13 @@ int recv_cb(int fd) {
 
 int send_cb(int fd) {
 
-    int count = send(fd, conn_list[fd].wbuffer, count, 0);
+#if 1
+
+    http_response(&conn_list[fd]);
+
+#endif
+
+    int count = send(fd, conn_list[fd].wbuffer, conn_list[fd].wlength, 0);
 
     set_event(fd, EPOLLIN, 0);
 
@@ -116,7 +113,7 @@ int Init_server(unsigned short port) {
     struct sockaddr_in servaddr;
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY); // 0000
-    servaddr.sin_port = htons(2000); // 1-1023系统默认使用
+    servaddr.sin_port = htons(port); // 1-1023系统默认使用
     if (-1 == bind(sockfd, (struct sockaddr*)&servaddr, sizeof(struct sockaddr)))
     {
         printf("bind failed: %s \n", strerror(errno));
@@ -131,13 +128,19 @@ int Init_server(unsigned short port) {
 int main() {
 
     unsigned short port = 2000;
-    int sockfd = Init_server(port);
-
+    
     epfd = epoll_create(1);
 
-    conn_list[sockfd].fd = sockfd;
-    conn_list[sockfd].r_action.accept_callback = accept_cb;
-    set_event(sockfd, EPOLLIN, 1);
+    int i = 0;
+
+    for (i = 0; i < MAX_POINTER; i++) {
+
+        int sockfd = Init_server(port + i);
+        conn_list[sockfd].fd = sockfd;
+        conn_list[sockfd].r_action.accept_callback = accept_cb;
+        set_event(sockfd, EPOLLIN, 1);
+    }
+
 
     while(1) {
 

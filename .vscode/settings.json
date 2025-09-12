@@ -74,6 +74,9 @@
     "poll.h": "c",
     "epoll.h": "c",
     "algorithm": "c",
-    "io_context": "c"
+    "io_context": "c",
+    "server.h": "c",
+    "stat.h": "c",
+    "fcntl.h": "c"
   }
 }

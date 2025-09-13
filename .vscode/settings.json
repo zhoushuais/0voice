@@ -74,6 +74,22 @@
     "poll.h": "c",
     "epoll.h": "c",
     "algorithm": "c",
-    "io_context": "c"
+    "io_context": "c",
+    "socket": "c",
+    "string_view": "c",
+    "internet": "c",
+    "netfwd": "c",
+    "cerrno": "c",
+    "types.h": "c",
+    "cstdlib": "c",
+    "array": "c",
+    "executor": "c",
+    "memory": "c",
+    "future": "c",
+    "istream": "c",
+    "functional": "c",
+    "tuple": "c",
+    "utility": "c",
+    "time.h": "c"
   }
 }

@@ -6,11 +6,17 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/epoll.h>
+#include <errno.h>
+#include <sys/time.h>
 
 int epfd = 0;
 
+struct timeval begin;
+struct timeval current;
+
 #define BUFFER_LENGTH 1024
-#define CONNECTION_SIZE 1024
+#define CONNECTION_SIZE 1048576 // 1048576
+#define MAX_PORTS 20
 
 typedef int (*RCALLBACK)(int fd);
 
@@ -55,6 +61,7 @@ int set_event(int fd, int event, int flag) {
 
 int event_register(int fd, int event)
 {
+    if (fd < 0) return -1;
     conn_list[fd].fd = fd;
     conn_list[fd].r_action.recv_callback = recv_cb;
     conn_list[fd].send_callback = send_cb;
@@ -73,9 +80,20 @@ int accept_cb(int fd) {
     socklen_t len = sizeof(clientaddr);
 
     int clientfd = accept(fd, (struct sockaddr*)&clientaddr, &len);
-    printf("accept client: %d\n", clientfd);
+    //printf("accept client: %d\n", clientfd);
+    if (clientfd < 0) {
+        printf("accept errno: %d\n", errno);
+        return -1;
+    }
 
     event_register(clientfd, EPOLLIN);
+
+    if((clientfd % 1000) == 0) {
+        gettimeofday(&current, NULL);
+        long long usec = (current.tv_sec - begin.tv_sec) * 1000000 + (current.tv_usec - begin.tv_usec);
+        memcpy(&begin, &current, sizeof(struct timeval));
+        printf("accept finish: %d, usec: %lld\n", clientfd, usec);
+    }
 
     return 0;
 }
@@ -90,7 +108,7 @@ int recv_cb(int fd) {
     }
     conn_list[fd].rlength = count;
 
-    printf("RECV: %s\n", conn_list[fd].rbuffer);
+    //printf("RECV: %s\n", conn_list[fd].rbuffer);
     
     conn_list[fd].wlength = conn_list[fd].rlength;
     memcpy(conn_list[fd].wbuffer, conn_list[fd].rbuffer, conn_list[fd].wlength);
@@ -102,7 +120,7 @@ int recv_cb(int fd) {
 
 int send_cb(int fd) {
 
-    int count = send(fd, conn_list[fd].wbuffer, count, 0);
+    int count = send(fd, conn_list[fd].wbuffer, conn_list[fd].wlength, 0);
 
     set_event(fd, EPOLLIN, 0);
 
@@ -116,13 +134,13 @@ int Init_server(unsigned short port) {
     struct sockaddr_in servaddr;
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY); // 0000
-    servaddr.sin_port = htons(2000); // 1-1023系统默认使用
+    servaddr.sin_port = htons(port); // 1-1023系统默认使用
     if (-1 == bind(sockfd, (struct sockaddr*)&servaddr, sizeof(struct sockaddr)))
     {
         printf("bind failed: %s \n", strerror(errno));
     }
 
-    listen(sockfd, 10); // 最大连接数
+    listen(sockfd, 10); // 最多有 10 个未被 accept 的连接在队列里
     printf("listen finshed: %d\n", sockfd);
 
     return sockfd;
@@ -131,13 +149,19 @@ int Init_server(unsigned short port) {
 int main() {
 
     unsigned short port = 2000;
-    int sockfd = Init_server(port);
-
+    
     epfd = epoll_create(1);
 
-    conn_list[sockfd].fd = sockfd;
-    conn_list[sockfd].r_action.accept_callback = accept_cb;
-    set_event(sockfd, EPOLLIN, 1);
+    int i =0;
+
+    for (i=0; i<MAX_PORTS; i++) {
+        int sockfd = Init_server(port + i);
+        conn_list[sockfd].fd = sockfd;
+        conn_list[sockfd].r_action.recv_callback = accept_cb;
+        set_event(sockfd, EPOLLIN, 1);
+    }
+
+    gettimeofday(&begin, NULL);
 
     while(1) {
 

@@ -6,41 +6,21 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/epoll.h>
-#include <errno.h>
-#include <sys/time.h>
+#include "server.h"
 
 int epfd = 0;
 
-struct timeval begin;
-struct timeval current;
 
-#define BUFFER_LENGTH 1024
-#define CONNECTION_SIZE 1048576 // 1048576
-#define MAX_PORTS 20
+#define CONNECTION_SIZE 1024
+#define MAX_POINTER 20
 
-typedef int (*RCALLBACK)(int fd);
+
 
 int accept_cb(int fd);
 int recv_cb(int fd);
 int send_cb(int fd);
 
-struct conn {
-    int fd;
 
-    char rbuffer[BUFFER_LENGTH];
-    int rlength;
-
-    char wbuffer[BUFFER_LENGTH];
-    int wlength;
-
-    RCALLBACK send_callback;
-
-    union {
-        RCALLBACK recv_callback;
-        RCALLBACK accept_callback;
-    } r_action;
-
-};
 
 struct conn conn_list[CONNECTION_SIZE] = {0};
 
@@ -86,7 +66,7 @@ int accept_cb(int fd) {
         return -1;
     }
 
-    event_register(clientfd, EPOLLIN);
+    event_register(clientfd, EPOLLIN | EPOLLET);
 
     if((clientfd % 1000) == 0) {
         gettimeofday(&current, NULL);
@@ -108,17 +88,28 @@ int recv_cb(int fd) {
     }
     conn_list[fd].rlength = count;
 
-    //printf("RECV: %s\n", conn_list[fd].rbuffer);
-    
+    printf("RECV: %s\n", conn_list[fd].rbuffer);
+
+#if 0
     conn_list[fd].wlength = conn_list[fd].rlength;
     memcpy(conn_list[fd].wbuffer, conn_list[fd].rbuffer, conn_list[fd].wlength);
-    
+
+#else
+    http_request(&conn_list[fd]);
+
+#endif
     set_event(fd, EPOLLOUT, 0);
 
     return count;
 }
 
 int send_cb(int fd) {
+
+#if 1
+
+    http_response(&conn_list[fd]);
+
+#endif
 
     int count = send(fd, conn_list[fd].wbuffer, conn_list[fd].wlength, 0);
 
@@ -152,16 +143,16 @@ int main() {
     
     epfd = epoll_create(1);
 
-    int i =0;
+    int i = 0;
 
-    for (i=0; i<MAX_PORTS; i++) {
+    for (i = 0; i < MAX_POINTER; i++) {
+
         int sockfd = Init_server(port + i);
         conn_list[sockfd].fd = sockfd;
-        conn_list[sockfd].r_action.recv_callback = accept_cb;
+        conn_list[sockfd].r_action.accept_callback = accept_cb;
         set_event(sockfd, EPOLLIN, 1);
     }
 
-    gettimeofday(&begin, NULL);
 
     while(1) {
 

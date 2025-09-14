@@ -20,9 +20,14 @@ struct conn {
         RCALLBACK recv_callback;
         RCALLBACK accept_callback;
     } r_action;
+
+    int status;
 };
 
 int http_request(struct conn *c);
 int http_response(struct conn *c);
+
+int ws_request(struct conn *c);
+int ws_response(struct conn *c);
 
 #endif

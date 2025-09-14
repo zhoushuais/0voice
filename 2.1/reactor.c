@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/epoll.h>
 #include "server.h"
+#include <sys/time.h>
 
 int epfd = 0;
 
@@ -14,7 +15,8 @@ int epfd = 0;
 #define CONNECTION_SIZE 1024
 #define MAX_POINTER 20
 
-
+struct timeval begin;
+struct timeval current;
 
 int accept_cb(int fd);
 int recv_cb(int fd);
@@ -85,6 +87,12 @@ int recv_cb(int fd) {
         printf("client disconnected: %d\n", fd);
         close(fd);
         epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL);
+    } else if (count < 0) {
+        printf("recv errno: %d, %s\n", errno, strerror(errno));
+        close(fd);
+        epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL);
+
+        return 0;
     }
     conn_list[fd].rlength = count;
 
@@ -94,8 +102,11 @@ int recv_cb(int fd) {
     conn_list[fd].wlength = conn_list[fd].rlength;
     memcpy(conn_list[fd].wbuffer, conn_list[fd].rbuffer, conn_list[fd].wlength);
 
-#else
+#elif 0
     http_request(&conn_list[fd]);
+
+#else
+    ws_request(&conn_list[fd]);
 
 #endif
     set_event(fd, EPOLLOUT, 0);
@@ -105,15 +116,30 @@ int recv_cb(int fd) {
 
 int send_cb(int fd) {
 
-#if 1
+#if 0
 
     http_response(&conn_list[fd]);
 
+#else
+
+    ws_response(&conn_list[fd]);
+
 #endif
 
-    int count = send(fd, conn_list[fd].wbuffer, conn_list[fd].wlength, 0);
+    int count = 0;
+    if (conn_list[fd].status == 1) {
+        int count = send(fd, conn_list[fd].wbuffer, conn_list[fd].wlength, 0);
 
-    set_event(fd, EPOLLIN, 0);
+        set_event(fd, EPOLLOUT, 0);
+    } else if (conn_list[fd].status == 2) {
+        set_event(fd, EPOLLOUT, 0);
+    } else if (conn_list[fd].status == 0) {
+        if (conn_list[fd].wlength > 0) {
+            int count = send(fd, conn_list[fd].wbuffer, conn_list[fd].wlength, 0);
+            //printf("SEND: %s\n", conn_list[fd].wbuffer);
+        }
+        set_event(fd, EPOLLIN, 0);
+    }
 
     return count;
     

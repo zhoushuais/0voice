@@ -22,8 +22,6 @@ int accept_cb(int fd);
 int recv_cb(int fd);
 int send_cb(int fd);
 
-
-
 struct conn conn_list[CONNECTION_SIZE] = {0};
 
 int set_event(int fd, int event, int flag) {
@@ -175,7 +173,7 @@ int main() {
 
         int sockfd = Init_server(port + i);
         conn_list[sockfd].fd = sockfd;
-        conn_list[sockfd].r_action.accept_callback = accept_cb;
+        conn_list[sockfd].r_action.recv_callback = accept_cb;
         set_event(sockfd, EPOLLIN, 1);
     }
 

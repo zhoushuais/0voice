@@ -88,11 +88,11 @@ int http_response(struct conn *c) {
 #else
     int filefd = open("vip.png", O_RDONLY);
 
-    struct stat stat_buf;
-    fstat(filefd, &stat_buf);
+    struct stat stat_buf;      // struct stat 包含了文件的详细信息
+    fstat(filefd, &stat_buf);   // 通过文件描述符获取文件信息
 
     if (c->status == 0) {
-        c->wlength = sprintf(c->wbuffer, 
+        c->wlength = sprintf(c->wbuffer,       // 格式化的数据写入字符串str: 目标字符串缓冲区,format: 格式化字符串（包含占位符）,...: 可变参数（要格式化的数据）
             "HTTP/1.1 200 OK\r\n"
             "Content-Type: image/png\r\n"
             "Accept-Ranges: bytes\r\n"
@@ -102,7 +102,7 @@ int http_response(struct conn *c) {
         );
         c->status = 1;
     } else if (c->status == 1) {
-        int ret =sendfile(c->fd, filefd, NULL, stat_buf.st_size);
+        int ret =sendfile(c->fd, filefd, NULL, stat_buf.st_size);  // 在两个文件描述符之间直接传输数据
         if (ret == -1) {
             printf("errno: %d\n", errno);
         }

@@ -43,6 +43,7 @@ void testcase(int connfd, char *msg, char *pattern, char *casename) {
         printf("case %s passed\n", casename);
     } else {
         printf("case %s failed, expect: %s, get: %s\n", casename, pattern, result);
+    }
 }
 
 
@@ -79,4 +80,6 @@ int main(int argc, char *argv[]) {
 
     testcase(connfd, "SET Teacher King", "OK\r\n", "SET-Teacher");
     testcase(connfd, "GET Teacher", "King\r\n", "GET-Teacher");
+
+    return 0;
 }

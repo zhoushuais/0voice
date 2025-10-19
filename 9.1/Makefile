@@ -1,0 +1,11 @@
+CC = gcc
+TARGET = kvstore
+SRCS = kvstore.c reactor.c proactor.c ntyco.c kvs_array.c
+INC = -I NtyCo/core/
+LIBS = -L ./NtyCo/ -lntyco -luring
+
+all:
+	$(CC) -o $(TARGET) $(SRCS) $(INC) $(LIBS)
+
+clean:
+	rm -f $(TARGET)
